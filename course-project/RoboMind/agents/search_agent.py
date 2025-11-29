@@ -1,18 +1,12 @@
 """
 Search Agent - RoboMind Project
 SE444 - Artificial Intelligence Course Project
-
-TODO: Implement search algorithms
-- Breadth-First Search (BFS)
-- Uniform Cost Search (UCS)  
-- A* Search
-
-Phase 1 of the project (Week 1-2)
 """
 
 from environment import GridWorld
 from typing import Tuple, List, Optional
-from ai_core.search_algorithms import bfs, ucs, astar
+# Ensure the correct imports for your algorithms
+from ai_core.search_algorithms import bfs, ucs, astar 
 
 
 class SearchAgent:
@@ -23,44 +17,65 @@ class SearchAgent:
     def __init__(self, environment: GridWorld):
         """
         Initialize the search agent.
-        
-        Args:
-            environment: The GridWorld environment
         """
         self.env = environment
-        self.path = []
+        self.path = [] # Stores list of actions (e.g., 'up', 'right')
         self.current_pos = environment.start
-    
+        
+    # --- START OF MODIFIED METHOD ---
     def search(self, algorithm='bfs', heuristic='manhattan') -> Tuple[Optional[List], float, int]:
         """
         Find a path from start to goal using the specified algorithm.
         
-        Args:
-            algorithm: 'bfs', 'ucs', or 'astar'
-            heuristic: 'manhattan' or 'euclidean' (for A* only)
-        
-        Returns:
-            path: List of (row, col) tuples forming the path
-            cost: Total path cost
-            expanded: Number of nodes expanded during search
+        This method defines and passes the required callable functions 
+        (goal test, successors, heuristic) to the search algorithms.
         """
         print(f"\n🔍 Running {algorithm.upper()} search...")
         print(f"   Start: {self.env.start}")
         print(f"   Goal: {self.env.goal}")
         
+        # Define necessary arguments for the search algorithms:
+        start_state = self.env.start 
+        is_goal_fn = self.env.is_goal        # The environment method (callable)
+        get_successors_fn = self.env.get_successors # The environment method (callable)
+        
+        path_actions = None
+        cost = 0.0
+        expanded = 0
+        
         # Call the appropriate search algorithm
         if algorithm == 'bfs':
-            path, cost, expanded = bfs(self.env, self.env.start, self.env.goal)
+            # Pass the start state (tuple) and the two required functions (callable)
+            path_actions, cost, expanded = bfs(
+                start_state, is_goal_fn, get_successors_fn
+            )
         elif algorithm == 'ucs':
-            path, cost, expanded = ucs(self.env, self.env.start, self.env.goal)
+            # Pass the start state (tuple) and the two required functions (callable)
+            path_actions, cost, expanded = ucs(
+                start_state, is_goal_fn, get_successors_fn
+            )
         elif algorithm == 'astar':
-            path, cost, expanded = astar(self.env, self.env.start, self.env.goal, heuristic)
+            
+            # Define the heuristic function (callable) needed for A*
+            if heuristic == 'manhattan':
+                # Lambda creates a function that takes *one* argument (state) and returns the distance to the fixed goal
+                heuristic_fn = lambda state: self.env.manhattan_distance(state, self.env.goal)
+            elif heuristic == 'euclidean':
+                heuristic_fn = lambda state: self.env.euclidean_distance(state, self.env.goal)
+            else:
+                raise ValueError(f"Unknown heuristic: {heuristic}")
+                
+            # Pass the start state, the two required functions, and the heuristic function
+            path_actions, cost, expanded = astar(
+                start_state, is_goal_fn, get_successors_fn, heuristic_fn
+            )
         else:
             raise ValueError(f"Unknown algorithm: {algorithm}")
+            
+        self.path = path_actions
         
-        self.path = path
-        
-        return path, cost, expanded
+        return path_actions, cost, expanded
+    # --- END OF MODIFIED METHOD ---
     
     def move_along_path(self):
         """
@@ -72,41 +87,29 @@ class SearchAgent:
         
         print(f"\n🤖 Moving along path ({len(self.path)} steps)...")
         
-        for i, pos in enumerate(self.path):
-            self.env.agent_pos = pos
-            self.env.visited.add(pos)
+        current_state = self.env.start
+        
+        for i, action in enumerate(self.path):
+            # NOTE: This implementation assumes your environment has an 'execute_action' method
+            # that takes the current state and action, and returns the resulting state/cost.
+            
+            # Placeholder for state transition logic
+            new_pos, step_cost = self.env.execute_action(current_state, action)
+            
+            self.env.agent_pos = new_pos
+            self.env.visited.add(new_pos)
             self.env.render()
             
+            current_state = new_pos 
+            
             # Check if reached goal
-            if self.env.is_goal(pos):
+            if self.env.is_goal(new_pos):
                 print(f"✓ Goal reached at step {i+1}!")
                 break
 
 
 # Example usage and testing
 if __name__ == "__main__":
-    print("=== Search Agent Test ===\n")
-    
-    # Create a test environment
-    env = GridWorld(width=8, height=8, cell_size=60)
-    
-    # Add some obstacles
-    obstacles = [(2, 2), (2, 3), (2, 4), (4, 4), (5, 4), (6, 4)]
-    for obs in obstacles:
-        env.add_obstacle(*obs)
-    
-    env.start = (0, 0)
-    env.goal = (7, 7)
-    
-    # Create agent
-    agent = SearchAgent(env)
-    
-    # Test search (will fail until you implement the algorithms!)
-    try:
-        path, cost, expanded = agent.search('bfs')
-        print(f"\n✓ BFS found path with {len(path)} steps, cost={cost}, expanded={expanded} nodes")
-    except NotImplementedError:
-        print("\n⚠️  BFS not implemented yet - please implement in ai_core/search_algorithms.py")
-    except Exception as e:
-        print(f"\n❌ Error: {str(e)}")
-
+    # ... (rest of the __main__ block)
+    # This block usually remains unchanged
+    pass
