@@ -1,151 +1,88 @@
-from typing import Tuple, List, Optional
+# search_algorithms.py
+# Phase 1 Implementation: BFS, UCS, A*, Path Reconstruction
+
+from heapq import heappush, heappop
 from collections import deque
-import heapq
-import math
 
-# ============================================================================
-# UTILITY FUNCTION
-# ============================================================================
-
-def reconstruct_path(parent: dict, start: Tuple[int, int], goal: Tuple[int, int]) -> List[Tuple[int, int]]:
-    """
-    Reconstruct path from parent pointers.
-    """
+# ---------------------------------------------------------
+# Helper: Reconstruct path from goal to start using parents
+# ---------------------------------------------------------
+def reconstruct_path(came_from, start, goal):
     path = []
     current = goal
-    
-    # Trace back from goal to start
     while current != start:
-        # Stop if we hit a node that has no parent pointer (should only be 'start')
-        if current not in parent or parent[current] is None and current != start:
-            return []
         path.append(current)
-        current = parent[current]
-        
-    # Add the start node
+        current = came_from[current]
     path.append(start)
-    
-    # Path is currently goal -> start, so reverse it
-    return path[::-1]
+    path.reverse()
+    return path
 
-# ============================================================================
-# 1. BREADTH-FIRST SEARCH (BFS)
-# ============================================================================
-
-def bfs(env, start: Tuple[int, int], goal: Tuple[int, int]) -> Tuple[Optional[List], float, int]:
-    """
-    Breadth-First Search - Find shortest path in terms of number of steps.
-    """
+# ---------------------------------------------------------
+# Breadth‑First Search (BFS) – Unweighted shortest path
+# ---------------------------------------------------------
+def bfs(environment, start, goal):
     queue = deque([start])
-    visited = {start}
-    parent = {start: None}
-    expanded = 0
-    
+    came_from = {start: None}
+
     while queue:
         current = queue.popleft()
-        
+
         if current == goal:
-            path = reconstruct_path(parent, start, goal)
-            # Cost for BFS is the number of steps (path length - 1)
-            cost = len(path) - 1 
-            return path, float(cost), expanded
+            return reconstruct_path(came_from, start, goal)
 
-        expanded += 1
-        
-        # FIX 1: Using env.get_neighbors(current) instead of env.neighbors(current)
-        for neighbor in env.get_neighbors(current):
-            if neighbor not in visited:
-                visited.add(neighbor)
-                parent[neighbor] = current
-                queue.append(neighbor)
-    
-    return None, float('inf'), expanded
+        for n in environment.get_neighbors(current):
+            if n not in came_from:
+                came_from[n] = current
+                queue.append(n)
 
-# ============================================================================
-# 2. UNIFORM COST SEARCH (UCS)
-# ============================================================================
+    return None
 
-def ucs(env, start: Tuple[int, int], goal: Tuple[int, int]) -> Tuple[Optional[List], float, int]:
-    """
-    Uniform Cost Search - Find path with lowest total cost. (Dijkstra's)
-    """
-    # Frontier: Priority Queue (cost, position)
-    frontier = [(0, start)]  
+# ---------------------------------------------------------
+# Uniform Cost Search (UCS) – Optimal for weighted costs
+# ---------------------------------------------------------
+def ucs(environment, start, goal):
+    frontier = []
+    heappush(frontier, (0, start))
+    came_from = {start: None}
     cost_so_far = {start: 0}
-    parent = {start: None}
-    expanded = 0
-    
-    while frontier:
-        current_cost, current = heapq.heappop(frontier)
-        
-        if current == goal:
-            path = reconstruct_path(parent, start, goal)
-            return path, current_cost, expanded
-            
-        expanded += 1
-        
-        # FIX 1: Using env.get_neighbors(current) instead of env.neighbors(current)
-        for neighbor in env.get_neighbors(current):
-            step_cost = env.get_cost(current, neighbor)
-            new_cost = current_cost + step_cost
-            
-            # Key check: relaxation (update cost if new path is cheaper)
-            if neighbor not in cost_so_far or new_cost < cost_so_far[neighbor]:
-                cost_so_far[neighbor] = new_cost
-                parent[neighbor] = current
-                heapq.heappush(frontier, (new_cost, neighbor))
-    
-    return None, float('inf'), expanded
 
-# ============================================================================
-# 3. A* SEARCH
-# ============================================================================
-
-def astar(env, start: Tuple[int, int], goal: Tuple[int, int], 
-          heuristic='manhattan') -> Tuple[Optional[List], float, int]:
-    """
-    A* Search - Find optimal path using f(n) = g(n) + h(n).
-    """
-    # 1. Define Heuristic Function (Fix for potential 'str' object not callable)
-    if heuristic == 'manhattan':
-        h_func = lambda pos: env.manhattan_distance(pos, goal)
-    elif heuristic == 'euclidean':
-        h_func = lambda pos: env.euclidean_distance(pos, goal)
-    else:
-        raise ValueError(f"Unknown heuristic: {heuristic}")
-        
-    g_score = {start: 0}
-    f_score = {start: h_func(start)}
-    
-    # Frontier: Priority Queue (f_score, position)
-    frontier = [(f_score[start], start)]  
-    parent = {start: None}
-    expanded = 0
-    
     while frontier:
-        current_f, current = heapq.heappop(frontier)
-        
+        current_cost, current = heappop(frontier)
+
         if current == goal:
-            path = reconstruct_path(parent, start, goal)
-            # Return ACTUAL cost g(goal), not f(goal)
-            return path, g_score[current], expanded
-            
-        expanded += 1
-        
-        # FIX 1: Using env.get_neighbors(current) instead of env.neighbors(current)
-        for neighbor in env.get_neighbors(current):
-            step_cost = env.get_cost(current, neighbor)
-            tentative_g = g_score[current] + step_cost
-            
-            # Key check: relaxation (update cost if new path is cheaper)
-            if neighbor not in g_score or tentative_g < g_score[neighbor]:
-                parent[neighbor] = current
-                g_score[neighbor] = tentative_g
-                
-                # Update the f_score for the frontier
-                # FIX 2: Ensure h_func is called correctly here with h_func(neighbor)
-                f_score_new = tentative_g + h_func(neighbor)
-                
-                heapq.heappush(frontier, (f_score_new, neighbor))
-    
-    return None, float('inf'), expanded
+            return reconstruct_path(came_from, start, goal)
+
+        for n in environment.get_neighbors(current):
+            new_cost = current_cost + environment.get_cost(current, n)
+            if n not in cost_so_far or new_cost < cost_so_far[n]:
+                cost_so_far[n] = new_cost
+                came_from[n] = current
+                heappush(frontier, (new_cost, n))
+
+    return None
+
+# ---------------------------------------------------------
+# A* Search – Optimal + Heuristics
+# ---------------------------------------------------------
+def astar(environment, start, goal):
+    frontier = []
+    heappush(frontier, (0, start))
+
+    came_from = {start: None}
+    cost_so_far = {start: 0}
+
+    while frontier:
+        _, current = heappop(frontier)
+
+        if current == goal:
+            return reconstruct_path(came_from, start, goal)
+
+        for n in environment.get_neighbors(current):
+            new_cost = cost_so_far[current] + environment.get_cost(current, n)
+            if n not in cost_so_far or new_cost < cost_so_far[n]:
+                cost_so_far[n] = new_cost
+                came_from[n] = current
+                priority = new_cost + environment.heuristic(n, goal)
+                heappush(frontier, (priority, n))
+
+    return None
