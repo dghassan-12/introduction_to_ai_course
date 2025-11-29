@@ -1,136 +1,51 @@
-import heapq
-from collections import deque
+from ai_core import search_algorithms
 
-# ---------------------------------------------------------
-# Breadth-First Search (BFS)
-# ---------------------------------------------------------
-def bfs(env):
-    start = env.start
-    goal = env.goal
+class SearchAgent:
+    def __init__(self, env):
+        self.env = env
 
-    frontier = deque([start])
-    visited = set([start])
-    parent = {start: None}
+    def search(self, algorithm):
+        # Reset environment counter
+        self.env.expanded = 0
 
-    while frontier:
-        node = frontier.popleft()
+        # -------------------------
+        # BFS
+        # -------------------------
+        if algorithm == "bfs":
+            path = search_algorithms.bfs(self.env)
 
-        if node == goal:
-            break
+            if path is None:
+                return None, None, self.env.expanded
 
-        for neighbor in env.get_neighbors(node):
-            if neighbor not in visited:
-                visited.add(neighbor)
-                parent[neighbor] = node
-                frontier.append(neighbor)
-                env.expanded += 1
+            cost = len(path)          # BFS cost = number of steps
+            return path, cost, self.env.expanded
 
-    if goal not in parent:
-        return None
+        # -------------------------
+        # UCS
+        # -------------------------
+        elif algorithm == "ucs":
+            result = search_algorithms.ucs(self.env)
 
-    # Reconstruct path
-    path = []
-    curr = goal
-    while curr is not None:
-        path.append(curr)
-        curr = parent[curr]
-    path.reverse()
+            if result is None:
+                return None, None, self.env.expanded
 
-    return path
+            path, cost = result
+            return path, cost, self.env.expanded
 
+        # -------------------------
+        # A*
+        # -------------------------
+        elif algorithm == "astar":
+            result = search_algorithms.astar(self.env, heuristic="manhattan")
 
-# ---------------------------------------------------------
-# Uniform Cost Search (UCS)
-# ---------------------------------------------------------
-def ucs(env):
-    start = env.start
-    goal = env.goal
+            if result is None:
+                return None, None, self.env.expanded
 
-    pq = [(0, start)]
-    parent = {start: None}
-    cost_so_far = {start: 0}
-    visited = set()
+            path, cost = result
+            return path, cost, self.env.expanded
 
-    while pq:
-        cost, node = heapq.heappop(pq)
-
-        if node == goal:
-            break
-
-        if node in visited:
-            continue
-        visited.add(node)
-
-        for neighbor in env.get_neighbors(node):
-            new_cost = cost + env.get_cost(node, neighbor)
-
-            if neighbor not in cost_so_far or new_cost < cost_so_far[neighbor]:
-                cost_so_far[neighbor] = new_cost
-                parent[neighbor] = node
-                heapq.heappush(pq, (new_cost, neighbor))
-                env.expanded += 1
-
-    if goal not in parent:
-        return None
-
-    path = []
-    curr = goal
-    while curr is not None:
-        path.append(curr)
-        curr = parent[curr]
-    path.reverse()
-
-    return path, cost_so_far[goal]
-
-
-# ---------------------------------------------------------
-# A* Search
-# ---------------------------------------------------------
-def astar(env, heuristic="manhattan"):
-    start = env.start
-    goal = env.goal
-
-    if heuristic == "manhattan":
-        h = lambda n: env.manhattan_distance(n, goal)
-    elif heuristic == "euclidean":
-        h = lambda n: env.euclidean_distance(n, goal)
-    else:
-        raise ValueError("Unknown heuristic")
-
-    pq = [(h(start), 0, start)]
-    parent = {start: None}
-    cost_so_far = {start: 0}
-    visited = set()
-
-    while pq:
-        f, g, node = heapq.heappop(pq)
-
-        if node == goal:
-            break
-
-        if node in visited:
-            continue
-        visited.add(node)
-
-        for neighbor in env.get_neighbors(node):
-            new_cost = g + env.get_cost(node, neighbor)
-
-            if neighbor not in cost_so_far or new_cost < cost_so_far[neighbor]:
-                cost_so_far[neighbor] = new_cost
-                parent[neighbor] = node
-                f_value = new_cost + h(neighbor)
-                heapq.heappush(pq, (f_value, new_cost, neighbor))
-                env.expanded += 1
-
-    if goal not in parent:
-        return None
-
-    # Reconstruct path
-    path = []
-    curr = goal
-    while curr is not None:
-        path.append(curr)
-        curr = parent[curr]
-    path.reverse()
-
-    return path, cost_so_far[goal]
+        # -------------------------
+        # Unknown algorithm
+        # -------------------------
+        else:
+            raise ValueError(f"Unknown algorithm: {algorithm}")
