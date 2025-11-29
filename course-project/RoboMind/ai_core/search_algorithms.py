@@ -9,7 +9,7 @@ def bfs(env):
     goal = env.goal
 
     frontier = deque([start])
-    visited = set()
+    visited = set([start])
     parent = {start: None}
 
     while frontier:
@@ -19,16 +19,16 @@ def bfs(env):
             break
 
         for neighbor in env.get_neighbors(node):
-            if neighbor not in visited and neighbor not in frontier:
+            if neighbor not in visited:
                 visited.add(neighbor)
                 parent[neighbor] = node
                 frontier.append(neighbor)
                 env.expanded += 1
 
-    # Reconstruct path
     if goal not in parent:
         return None
 
+    # Reconstruct path
     path = []
     curr = goal
     while curr is not None:
@@ -59,7 +59,6 @@ def ucs(env):
 
         if node in visited:
             continue
-
         visited.add(node)
 
         for neighbor in env.get_neighbors(node):
@@ -74,7 +73,6 @@ def ucs(env):
     if goal not in parent:
         return None
 
-    # Reconstruct path
     path = []
     curr = goal
     while curr is not None:
@@ -92,7 +90,6 @@ def astar(env, heuristic="manhattan"):
     start = env.start
     goal = env.goal
 
-    # Pick heuristic
     if heuristic == "manhattan":
         h = lambda n: env.manhattan_distance(n, goal)
     elif heuristic == "euclidean":
