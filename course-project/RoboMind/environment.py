@@ -6,10 +6,8 @@ This file provides the simulation environment for the RoboMind project.
 Students should NOT modify this file - use it to test your agents.
 """
 
-try:
-    import pygame
-except ImportError:
-    pygame = None
+
+import pygame
 import numpy as np
 from typing import Tuple, List, Optional
 
