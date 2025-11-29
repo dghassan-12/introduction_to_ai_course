@@ -1,116 +1,139 @@
 import heapq
 from collections import deque
 
-class Graph:
-    def __init__(self):
-        self.edges = {}
-
-    def add_edge(self, u, v, cost=1):
-        if u not in self.edges:
-            self.edges[u] = []
-        self.edges[u].append((v, cost))
-
-    def neighbors(self, node):
-        return self.edges.get(node, [])
-
-
-# ---------------------------------------------------------
-# Depth-First Search (DFS)
-# ---------------------------------------------------------
-def dfs(graph, start, goal):
-    stack = [(start, [start])]
-    visited = set()
-
-    while stack:
-        node, path = stack.pop()
-        if node == goal:
-            return path
-        
-        if node not in visited:
-            visited.add(node)
-            for neighbor, _ in graph.neighbors(node):
-                if neighbor not in visited:
-                    stack.append((neighbor, path + [neighbor]))
-
-    return None
-
-
 # ---------------------------------------------------------
 # Breadth-First Search (BFS)
 # ---------------------------------------------------------
-def bfs(graph, start, goal):
-    queue = deque([(start, [start])])
+def bfs(env):
+    start = env.start
+    goal = env.goal
+
+    frontier = deque([start])
     visited = set()
+    parent = {start: None}
 
-    while queue:
-        node, path = queue.popleft()
+    while frontier:
+        node = frontier.popleft()
+
         if node == goal:
-            return path
+            break
 
-        if node not in visited:
-            visited.add(node)
-            for neighbor, _ in graph.neighbors(node):
-                queue.append((neighbor, path + [neighbor]))
+        for neighbor in env.get_neighbors(node):
+            if neighbor not in visited and neighbor not in frontier:
+                visited.add(neighbor)
+                parent[neighbor] = node
+                frontier.append(neighbor)
+                env.expanded += 1
 
-    return None
+    # Reconstruct path
+    if goal not in parent:
+        return None
+
+    path = []
+    curr = goal
+    while curr is not None:
+        path.append(curr)
+        curr = parent[curr]
+    path.reverse()
+
+    return path
 
 
 # ---------------------------------------------------------
 # Uniform Cost Search (UCS)
 # ---------------------------------------------------------
-def ucs(graph, start, goal):
-    pq = [(0, start, [start])]
+def ucs(env):
+    start = env.start
+    goal = env.goal
+
+    pq = [(0, start)]
+    parent = {start: None}
+    cost_so_far = {start: 0}
     visited = set()
 
     while pq:
-        cost, node, path = heapq.heappop(pq)
+        cost, node = heapq.heappop(pq)
+
         if node == goal:
-            return path, cost
+            break
 
-        if node not in visited:
-            visited.add(node)
-            for neighbor, edge_cost in graph.neighbors(node):
-                heapq.heappush(pq, (cost + edge_cost, neighbor, path + [neighbor]))
+        if node in visited:
+            continue
 
-    return None
+        visited.add(node)
+
+        for neighbor in env.get_neighbors(node):
+            new_cost = cost + env.get_cost(node, neighbor)
+
+            if neighbor not in cost_so_far or new_cost < cost_so_far[neighbor]:
+                cost_so_far[neighbor] = new_cost
+                parent[neighbor] = node
+                heapq.heappush(pq, (new_cost, neighbor))
+                env.expanded += 1
+
+    if goal not in parent:
+        return None
+
+    # Reconstruct path
+    path = []
+    curr = goal
+    while curr is not None:
+        path.append(curr)
+        curr = parent[curr]
+    path.reverse()
+
+    return path, cost_so_far[goal]
 
 
 # ---------------------------------------------------------
 # A* Search
 # ---------------------------------------------------------
-def astar(graph, start, goal, heuristic):
-    pq = [(heuristic(start), 0, start, [start])]
+def astar(env, heuristic="manhattan"):
+    start = env.start
+    goal = env.goal
+
+    # Pick heuristic
+    if heuristic == "manhattan":
+        h = lambda n: env.manhattan_distance(n, goal)
+    elif heuristic == "euclidean":
+        h = lambda n: env.euclidean_distance(n, goal)
+    else:
+        raise ValueError("Unknown heuristic")
+
+    pq = [(h(start), 0, start)]
+    parent = {start: None}
+    cost_so_far = {start: 0}
     visited = set()
 
     while pq:
-        f, g, node, path = heapq.heappop(pq)
+        f, g, node = heapq.heappop(pq)
+
         if node == goal:
-            return path, g
+            break
 
-        if node not in visited:
-            visited.add(node)
-            for neighbor, cost in graph.neighbors(node):
-                new_cost = g + cost
-                f_value = new_cost + heuristic(neighbor)
-                heapq.heappush(pq, (f_value, new_cost, neighbor, path + [neighbor]))
+        if node in visited:
+            continue
+        visited.add(node)
 
-    return None
+        for neighbor in env.get_neighbors(node):
+            new_cost = g + env.get_cost(node, neighbor)
 
+            if neighbor not in cost_so_far or new_cost < cost_so_far[neighbor]:
+                cost_so_far[neighbor] = new_cost
+                parent[neighbor] = node
+                f_value = new_cost + h(neighbor)
+                heapq.heappush(pq, (f_value, new_cost, neighbor))
+                env.expanded += 1
 
-# ---------------------------------------------------------
-# Example Usage
-# ---------------------------------------------------------
-if __name__ == "__main__":
-    g = Graph()
-    g.add_edge("A", "B", 1)
-    g.add_edge("A", "C", 4)
-    g.add_edge("B", "D", 2)
-    g.add_edge("C", "D", 1)
-    g.add_edge("D", "E", 3)
+    if goal not in parent:
+        return None
 
-    print("DFS:", dfs(g, "A", "E"))
-    print("BFS:", bfs(g, "A", "E"))
-    print("UCS:", ucs(g, "A", "E"))
-    
-    heuristic = lambda n: {"A":4, "B":3, "C":2, "D":1, "E":0}[n]
-    print("A*:", astar(g, "A", "E", heuristic))
+    # Reconstruct path
+    path = []
+    curr = goal
+    while curr is not None:
+        path.append(curr)
+        curr = parent[curr]
+    path.reverse()
+
+    return path, cost_so_far[goal]
