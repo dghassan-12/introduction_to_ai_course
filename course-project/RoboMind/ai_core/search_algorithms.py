@@ -1,46 +1,32 @@
-# search_algorithms.py
-# Phase 1 Implementation: BFS, UCS, A*, Path Reconstruction
-
 from heapq import heappush, heappop
 from collections import deque
 
 # ---------------------------------------------------------
-# Helper: Reconstruct path from goal to start using parents
+# Breadth-First Search (BFS)
 # ---------------------------------------------------------
-def reconstruct_path(came_from, start, goal):
-    path = []
-    current = goal
-    while current != start:
-        path.append(current)
-        current = came_from[current]
-    path.append(start)
-    path.reverse()
-    return path
-
-# ---------------------------------------------------------
-# Breadth‑First Search (BFS) – Unweighted shortest path
-# ---------------------------------------------------------
-def bfs(environment, start, goal):
+def bfs_search(environment, start, goal):
     queue = deque([start])
     came_from = {start: None}
+    visited = {start}
 
     while queue:
         current = queue.popleft()
-
         if current == goal:
-            return reconstruct_path(came_from, start, goal)
+            break
 
-        for n in environment.get_neighbors(current):
-            if n not in came_from:
-                came_from[n] = current
-                queue.append(n)
+        for neighbor in environment.get_neighbors(current):
+            if neighbor not in visited:
+                visited.add(neighbor)
+                came_from[neighbor] = current
+                queue.append(neighbor)
 
-    return None
+    return reconstruct_path(came_from, start, goal)
+
 
 # ---------------------------------------------------------
-# Uniform Cost Search (UCS) – Optimal for weighted costs
+# Uniform Cost Search (UCS)
 # ---------------------------------------------------------
-def ucs(environment, start, goal):
+def ucs_search(environment, start, goal):
     frontier = []
     heappush(frontier, (0, start))
     came_from = {start: None}
@@ -50,21 +36,23 @@ def ucs(environment, start, goal):
         current_cost, current = heappop(frontier)
 
         if current == goal:
-            return reconstruct_path(came_from, start, goal)
+            break
 
-        for n in environment.get_neighbors(current):
-            new_cost = current_cost + environment.get_cost(current, n)
-            if n not in cost_so_far or new_cost < cost_so_far[n]:
-                cost_so_far[n] = new_cost
-                came_from[n] = current
-                heappush(frontier, (new_cost, n))
+        for neighbor in environment.get_neighbors(current):
+            new_cost = current_cost + environment.get_cost(current, neighbor)
 
-    return None
+            if neighbor not in cost_so_far or new_cost < cost_so_far[neighbor]:
+                cost_so_far[neighbor] = new_cost
+                came_from[neighbor] = current
+                heappush(frontier, (new_cost, neighbor))
+
+    return reconstruct_path(came_from, start, goal)
+
 
 # ---------------------------------------------------------
-# A* Search – Optimal + Heuristics
+# A* Search
 # ---------------------------------------------------------
-def astar(environment, start, goal):
+def a_star_search(environment, start, goal):
     frontier = []
     heappush(frontier, (0, start))
 
@@ -75,14 +63,34 @@ def astar(environment, start, goal):
         _, current = heappop(frontier)
 
         if current == goal:
-            return reconstruct_path(came_from, start, goal)
+            break
 
-        for n in environment.get_neighbors(current):
-            new_cost = cost_so_far[current] + environment.get_cost(current, n)
-            if n not in cost_so_far or new_cost < cost_so_far[n]:
-                cost_so_far[n] = new_cost
-                came_from[n] = current
-                priority = new_cost + environment.heuristic(n, goal)
-                heappush(frontier, (priority, n))
+        for neighbor in environment.get_neighbors(current):
+            new_cost = cost_so_far[current] + environment.get_cost(current, neighbor)
 
-    return None
+            if neighbor not in cost_so_far or new_cost < cost_so_far[neighbor]:
+                cost_so_far[neighbor] = new_cost
+
+                # Use Manhattan heuristic (environment provides this)
+                h = environment.manhattan_distance(neighbor, goal)
+                priority = new_cost + h
+
+                came_from[neighbor] = current
+                heappush(frontier, (priority, neighbor))
+
+    return reconstruct_path(came_from, start, goal)
+
+
+# ---------------------------------------------------------
+# Path reconstruction helper
+# ---------------------------------------------------------
+def reconstruct_path(came_from, start, goal):
+    if goal not in came_from:
+        return []  # no path found
+
+    path = []
+    current = goal
+    while current is not None:
+        path.append(current)
+        current = came_from[current]
+    return path[::-1]
